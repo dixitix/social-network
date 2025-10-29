@@ -1,0 +1,38 @@
+@startuml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+
+!define DEVICONS https://raw.githubusercontent.com/tupadr3/plantuml-icon-font-sprites/master/devicons
+!define FONTAWESOME https://raw.githubusercontent.com/tupadr3/plantuml-icon-font-sprites/master/font-awesome-5
+
+!include DEVICONS/docker.puml
+!include DEVICONS/database.puml
+!include FONTAWESOME/users.puml
+
+
+title    Архитектура социальной сети
+
+LAYOUT_WITH_LEGEND()
+
+Person(user, "User", "Зарегистрированный пользователь")
+Container(mainService, "Main Service", "Go", "Обрабатывает клиентский API, регистрацию пользователей и аутентификацию", "docker")
+Container(statisticsService, "Statistics Service", "Go", "Подсчитывает лайки и просмотры", "docker")
+Container(postsAndCommentsService, "Posts & Comments Service", "Go", "Управляет публикациями и комментариями", "docker")
+
+ContainerDb(mainDb, "Main Database", "PostgreSQL", "Хранит пользовательские данные", $sprite="database")
+ContainerDb(statisticsDb, "Statistics Database", "Clickhouse", "Хранит данные о лайках и просмотрах", $sprite="clickhouse")
+ContainerDb(postsAndCommentsDb, "Posts & Comments Database", "MongoDB", "Хранит данные о публикациях и комментариях", $sprite="database")
+
+Container(messageBroker, "Message Broker", "RabbitMQ", "Обрабатывает сообщения между службами")
+
+Rel(user, mainService, "Uses", "REST API")
+Rel(mainService, postsAndCommentsService, "Сообщения", "gRPC")
+
+Rel(mainService, mainDb, "Reads/Writes")
+Rel(postsAndCommentsService, postsAndCommentsDb, "Reads/Writes")
+
+Rel_U(mainService, messageBroker, "Отправляет события", "Publish")
+Rel_U(statisticsService, mainService, "Отправляет статистику", "gRPC")
+Rel_U(mainService, statisticsService, "Забирает статистику", "gRPC")
+Rel_D(messageBroker, statisticsService, "Отправляет события", "Subscribe")
+Rel(statisticsService, statisticsDb, "Reads/Writes")
+@enduml
