@@ -1,0 +1,40 @@
+@startuml
+entity "User" as user {
+  * user_id : number <<generated>>
+  --
+  *username : text
+  password: text
+}
+
+entity "Post" as post {
+  * post_id : number <<generated>>
+  --
+  *creation_time: datetime
+  content: text
+  author_id: number
+  post_stats_id: number
+}
+
+entity "Post Statistics" as postStats {
+  * post_stats_id : number <<generated>>
+  --
+  *post_id: number
+  liked_by_users: list[number]
+  viewed_by_users: list[number]
+}
+
+entity "Comment" as comment {
+  * comment_id : number <<generated>>
+  --
+  *creation_time: datetime
+  content: text
+  author_id: number
+  parent_id: number
+  is_parent_post: bool
+}
+
+user ||--o{ post : "Пишет пост"
+user ||--o{ comment : "Пишет коммент"
+post ||--o{ comment : "Содержит несколько комментов"
+post ||--o{ postStats : "Содержит post_stats_id"
+@enduml
