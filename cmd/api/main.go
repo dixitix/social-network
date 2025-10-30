@@ -28,6 +28,7 @@ func main() {
 	fmt.Println("Connected to Postgres")
 
 	http.HandleFunc("/health", handlers.Health)
+	http.HandleFunc("/auth/register", handlers.AuthRegister(db))
 
 	fmt.Println("Main server started on :8080")
 	if err := http.ListenAndServe(":8080", nil); err != nil {
