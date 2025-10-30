@@ -29,6 +29,7 @@ func main() {
 
 	http.HandleFunc("/health", handlers.Health)
 	http.HandleFunc("/auth/register", handlers.AuthRegister(db))
+	http.HandleFunc("/auth/login", handlers.AuthLogin(db))
 
 	fmt.Println("Main server started on :8080")
 	if err := http.ListenAndServe(":8080", nil); err != nil {
