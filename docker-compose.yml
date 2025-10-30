@@ -1,0 +1,9 @@
+services:
+  main-db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: main_user
+      POSTGRES_PASSWORD: main_pass
+      POSTGRES_DB: main_db
+    ports:
+      - "5433:5432"
