@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"social-network/internal/handlers"
+	"social-network/main-service/internal/handlers"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
 )

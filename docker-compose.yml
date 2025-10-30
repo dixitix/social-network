@@ -8,4 +8,16 @@ services:
     ports:
       - "5433:5432"
     volumes:
-      - ./migrations:/migrations
+      - ./main-service/migrations:/docker-entrypoint-initdb.d
+
+  main-service:
+    build:
+      context: .
+      dockerfile: ./main-service/Dockerfile
+    environment:
+      DATABASE_URL: postgres://main_user:main_pass@main-db:5432/main_db?sslmode=disable
+      JWT_SECRET: dev-secret-change
+    depends_on:
+      - main-db
+    ports:
+      - "8080:8080"
