@@ -7,6 +7,7 @@ import (
 
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
+	"go.mongodb.org/mongo-driver/v2/mongo/options"
 
 	"github.com/google/uuid"
 )
@@ -72,7 +73,12 @@ func (db *DB) Get(id, ownerID string) (Post, error) {
 func (db *DB) List(ownerID string, limit int64) ([]Post, error) {
 	ctx := context.Background()
 
-	cur, err := db.coll.Find(ctx, bson.D{{Key: "owner_id", Value: ownerID}}, nil)
+	findOpts := options.Find()
+	if limit > 0 {
+		findOpts.SetLimit(limit)
+	}
+
+	cur, err := db.coll.Find(ctx, bson.D{{Key: "owner_id", Value: ownerID}}, findOpts)
 	if err != nil {
 		return nil, err
 	}
