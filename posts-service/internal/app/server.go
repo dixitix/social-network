@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"errors"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -75,8 +76,14 @@ func (s *Server) GetPost(_ context.Context, in *pb.GetPostRequest) (*pb.GetPostR
 }
 
 func (s *Server) ListPosts(_ context.Context, in *pb.ListPostsRequest) (*pb.ListPostsResponse, error) {
-	posts, err := s.DB.List(in.GetUserId(), int64(in.GetPageSize()))
+	page := in.GetPage()
+	pageSize := in.GetPageSize()
+
+	posts, total, err := s.DB.List(in.GetUserId(), int64(page), int64(pageSize))
 	if err != nil {
+		if errors.Is(err, db.ErrInvalidPagination) {
+			return nil, status.Error(codes.InvalidArgument, "invalid pagination parameters")
+		}
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 	var out []*pb.Post
@@ -85,8 +92,8 @@ func (s *Server) ListPosts(_ context.Context, in *pb.ListPostsRequest) (*pb.List
 	}
 	return &pb.ListPostsResponse{
 		Posts:    out,
-		Page:     in.GetPage(),
-		PageSize: in.GetPageSize(),
-		Total:    int32(len(out)),
+		Page:     page,
+		PageSize: pageSize,
+		Total:    int32(total),
 	}, nil
 }

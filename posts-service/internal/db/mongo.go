@@ -12,7 +12,10 @@ import (
 	"github.com/google/uuid"
 )
 
-var ErrNotFound = errors.New("not found")
+var (
+	ErrNotFound          = errors.New("not found")
+	ErrInvalidPagination = errors.New("invalid pagination")
+)
 
 type Post struct {
 	ID        string    `bson:"id"`
@@ -75,17 +78,28 @@ func (db *DB) Get(id, ownerID string) (Post, error) {
 	return p, err
 }
 
-func (db *DB) List(ownerID string, limit int64) ([]Post, error) {
+func (db *DB) List(ownerID string, page, pageSize int64) ([]Post, int64, error) {
 	ctx := context.Background()
 
-	findOpts := options.Find()
-	if limit > 0 {
-		findOpts.SetLimit(limit)
+	if page < 1 || pageSize <= 0 {
+		return nil, 0, ErrInvalidPagination
 	}
 
-	cur, err := db.coll.Find(ctx, bson.D{{Key: "owner_id", Value: ownerID}}, findOpts)
+	filter := bson.D{{Key: "owner_id", Value: ownerID}}
+
+	total, err := db.coll.CountDocuments(ctx, filter)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
+	}
+
+	findOpts := options.Find()
+	findOpts.SetSort(bson.D{{Key: "created_at", Value: -1}})
+	findOpts.SetSkip((page - 1) * pageSize)
+	findOpts.SetLimit(pageSize)
+
+	cur, err := db.coll.Find(ctx, filter, findOpts)
+	if err != nil {
+		return nil, 0, err
 	}
 	defer cur.Close(ctx)
 
@@ -93,11 +107,11 @@ func (db *DB) List(ownerID string, limit int64) ([]Post, error) {
 	for cur.Next(ctx) {
 		var p Post
 		if err := cur.Decode(&p); err != nil {
-			return nil, err
+			return nil, 0, err
 		}
 		posts = append(posts, p)
 	}
-	return posts, cur.Err()
+	return posts, total, cur.Err()
 }
 
 func NewStringID() string {

@@ -7,6 +7,9 @@ import (
 	"strconv"
 	"strings"
 
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+
 	proto "posts-service/proto"
 )
 
@@ -45,14 +48,20 @@ func Posts(client proto.PostsServiceClient) http.HandlerFunc {
 			pageSize := 10
 
 			if v := r.URL.Query().Get("page"); v != "" {
-				if n, err := strconv.Atoi(v); err == nil && n > 0 {
-					page = n
+				n, err := strconv.Atoi(v)
+				if err != nil || n < 1 {
+					http.Error(w, "invalid page parameter", http.StatusBadRequest)
+					return
 				}
+				page = n
 			}
 			if v := r.URL.Query().Get("page_size"); v != "" {
-				if n, err := strconv.Atoi(v); err == nil && n > 0 {
-					pageSize = n
+				n, err := strconv.Atoi(v)
+				if err != nil || n <= 0 {
+					http.Error(w, "invalid page_size parameter", http.StatusBadRequest)
+					return
 				}
+				pageSize = n
 			}
 
 			resp, err := client.ListPosts(context.Background(), &proto.ListPostsRequest{
@@ -61,6 +70,10 @@ func Posts(client proto.PostsServiceClient) http.HandlerFunc {
 				PageSize: int32(pageSize),
 			})
 			if err != nil {
+				if st, ok := status.FromError(err); ok && st.Code() == codes.InvalidArgument {
+					http.Error(w, st.Message(), http.StatusBadRequest)
+					return
+				}
 				http.Error(w, "service error", http.StatusBadGateway)
 				return
 			}
