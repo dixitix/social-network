@@ -1,4 +1,4 @@
-module social-network
+module main-service
 
 go 1.25.0
 

@@ -3,9 +3,9 @@ package main
 import (
 	"database/sql"
 	"fmt"
+	"main-service/internal/handlers"
 	"net/http"
 	"os"
-	"social-network/main-service/internal/handlers"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
