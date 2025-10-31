@@ -17,7 +17,26 @@ services:
     environment:
       DATABASE_URL: postgres://main_user:main_pass@main-db:5432/main_db?sslmode=disable
       JWT_SECRET: dev-secret-change
+      POSTS_SERVICE_ADDR: posts-service:50051
     depends_on:
       - main-db
+      - posts-service
     ports:
       - "8080:8080"
+
+  posts-mongo:
+    image: mongo:7
+    ports:
+      - "27018:27017"
+
+  posts-service:
+    build:
+      context: .
+      dockerfile: ./posts-service/Dockerfile
+    environment:
+      GRPC_ADDR: ":50051"
+      MONGO_URI: mongodb://posts-mongo:27017
+    depends_on:
+      - posts-mongo
+    ports:
+      - "50051:50051"
