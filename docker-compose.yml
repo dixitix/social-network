@@ -9,6 +9,12 @@ services:
       - "5433:5432"
     volumes:
       - ./main-service/migrations:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U main_user -d main_db"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
 
   main-service:
     build:
@@ -19,8 +25,10 @@ services:
       JWT_SECRET: dev-secret-change
       POSTS_SERVICE_ADDR: posts-service:50051
     depends_on:
-      - main-db
-      - posts-service
+      main-db:
+        condition: service_healthy
+      posts-service:
+        condition: service_started
     ports:
       - "8080:8080"
 
