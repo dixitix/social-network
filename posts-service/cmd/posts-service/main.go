@@ -4,8 +4,8 @@ import (
 	"log"
 	"net"
 	"os"
-	"posts-service/internal/db"
 	"posts-service/internal/app"
+	"posts-service/internal/db"
 
 	"google.golang.org/grpc"
 
@@ -29,13 +29,13 @@ func main() {
 	collName := env("MONGO_COLL", "posts")
 
 	lis, err := net.Listen("tcp", addr)
-	if err != nil { 
-		log.Fatal(err) 
+	if err != nil {
+		log.Fatal(err)
 	}
 
-	client, err := mongo.Connect(nil, options.Client().ApplyURI(mongoURI))
-	if err != nil { 
-		log.Fatal(err) 
+	client, err := mongo.Connect(options.Client().ApplyURI(mongoURI))
+	if err != nil {
+		log.Fatal(err)
 	}
 
 	db := db.New(client, dbName, collName)

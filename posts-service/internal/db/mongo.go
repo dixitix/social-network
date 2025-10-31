@@ -1,6 +1,7 @@
 package db
 
 import (
+	"context"
 	"errors"
 	"time"
 
@@ -30,13 +31,17 @@ func New(client *mongo.Client, dbName, collName string) *DB {
 }
 
 func (db *DB) Create(p Post) (Post, error) {
+	ctx := context.Background()
+
 	p.CreatedAt = time.Now().UTC()
 	p.UpdatedAt = p.CreatedAt
-	_, err := db.coll.InsertOne(nil, p)
+	_, err := db.coll.InsertOne(ctx, p)
 	return p, err
 }
 
 func (db *DB) Update(id, ownerID, title, content string) (Post, error) {
+	ctx := context.Background()
+
 	filter := bson.D{{Key: "id", Value: id}, {Key: "owner_id", Value: ownerID}}
 	update := bson.D{{Key: "$set", Value: bson.D{
 		{Key: "title", Value: title},
@@ -45,30 +50,36 @@ func (db *DB) Update(id, ownerID, title, content string) (Post, error) {
 	}}}
 
 	var out Post
-	err := db.coll.FindOneAndUpdate(nil, filter, update).Decode(&out)
+	err := db.coll.FindOneAndUpdate(ctx, filter, update).Decode(&out)
 	return out, err
 }
 
 func (db *DB) Delete(id, ownerID string) error {
-	_, err := db.coll.DeleteOne(nil, bson.D{{Key: "id", Value: id}, {Key: "owner_id", Value: ownerID}})
+	ctx := context.Background()
+
+	_, err := db.coll.DeleteOne(ctx, bson.D{{Key: "id", Value: id}, {Key: "owner_id", Value: ownerID}})
 	return err
 }
 
 func (db *DB) Get(id, ownerID string) (Post, error) {
+	ctx := context.Background()
+
 	var p Post
-	err := db.coll.FindOne(nil, bson.D{{Key: "id", Value: id}, {Key: "owner_id", Value: ownerID}}).Decode(&p)
+	err := db.coll.FindOne(ctx, bson.D{{Key: "id", Value: id}, {Key: "owner_id", Value: ownerID}}).Decode(&p)
 	return p, err
 }
 
 func (db *DB) List(ownerID string, limit int64) ([]Post, error) {
-	cur, err := db.coll.Find(nil, bson.D{{Key: "owner_id", Value: ownerID}}, nil)
+	ctx := context.Background()
+
+	cur, err := db.coll.Find(ctx, bson.D{{Key: "owner_id", Value: ownerID}}, nil)
 	if err != nil {
 		return nil, err
 	}
-	defer cur.Close(nil)
+	defer cur.Close(ctx)
 
 	var posts []Post
-	for cur.Next(nil) {
+	for cur.Next(ctx) {
 		var p Post
 		if err := cur.Decode(&p); err != nil {
 			return nil, err
