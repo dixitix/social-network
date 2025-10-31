@@ -51,7 +51,12 @@ func (db *DB) Update(id, ownerID, title, content string) (Post, error) {
 	}}}
 
 	var out Post
-	err := db.coll.FindOneAndUpdate(ctx, filter, update).Decode(&out)
+	opts := options.FindOneAndUpdate().SetReturnDocument(options.After)
+
+	err := db.coll.FindOneAndUpdate(ctx, filter, update, opts).Decode(&out)
+	if errors.Is(err, mongo.ErrNoDocuments) {
+		return Post{}, ErrNotFound
+	}
 	return out, err
 }
 
