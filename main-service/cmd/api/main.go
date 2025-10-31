@@ -3,11 +3,14 @@ package main
 import (
 	"database/sql"
 	"fmt"
+	"main-service/internal/handlers"
 	"net/http"
 	"os"
-	"social-network/main-service/internal/handlers"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
+	proto "posts-service/proto"
 )
 
 func main() {
@@ -27,11 +30,26 @@ func main() {
 	}
 	fmt.Println("Connected to Postgres")
 
+	postsAddr := os.Getenv("POSTS_SERVICE_ADDR")
+	if postsAddr == "" {
+		postsAddr = "localhost:9090"
+	}
+
+	grpcConn, err := grpc.NewClient(postsAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		panic(fmt.Errorf("grpc new client failed: %w", err))
+	}
+	defer grpcConn.Close()
+
+	postsClient := proto.NewPostsServiceClient(grpcConn)
+
 	http.HandleFunc("/health", handlers.Health)
 	http.HandleFunc("/auth/register", handlers.AuthRegister(db))
 	http.HandleFunc("/auth/login", handlers.AuthLogin(db))
 	http.HandleFunc("/users/me", handlers.UserMe(db))
 	http.HandleFunc("/users/me/update", handlers.UserMeUpdate(db))
+	http.HandleFunc("/posts", handlers.Posts(postsClient))
+	http.HandleFunc("/posts/", handlers.PostsWithID(postsClient))
 
 	fmt.Println("Main server started on :8080")
 	if err := http.ListenAndServe(":8080", nil); err != nil {
