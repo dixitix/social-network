@@ -4,9 +4,12 @@ import (
 	"database/sql"
 	"fmt"
 	"main-service/internal/handlers"
+	"net"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
+	"time"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"google.golang.org/grpc"
@@ -35,7 +38,7 @@ func main() {
 
 	postsAddr := os.Getenv("POSTS_SERVICE_ADDR")
 	if postsAddr == "" {
-		postsAddr = "localhost:9090"
+		postsAddr = "localhost:50051"
 	}
 
 	grpcConn, err := grpc.NewClient(postsAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
@@ -68,17 +71,26 @@ func main() {
 
 	var viewsWriter, likesWriter *kafka.Writer
 	if len(brokers) > 0 {
+		if err := ensureKafkaTopic(brokers, viewsTopic); err != nil {
+			panic(fmt.Errorf("ensure kafka topic %q failed: %w", viewsTopic, err))
+		}
+		if err := ensureKafkaTopic(brokers, likesTopic); err != nil {
+			panic(fmt.Errorf("ensure kafka topic %q failed: %w", likesTopic, err))
+		}
+
 		viewsWriter = &kafka.Writer{
-			Addr:     kafka.TCP(brokers...),
-			Topic:    viewsTopic,
-			Balancer: &kafka.LeastBytes{},
+			Addr:                   kafka.TCP(brokers...),
+			Topic:                  viewsTopic,
+			Balancer:               &kafka.LeastBytes{},
+			AllowAutoTopicCreation: true,
 		}
 		defer viewsWriter.Close()
 
 		likesWriter = &kafka.Writer{
-			Addr:     kafka.TCP(brokers...),
-			Topic:    likesTopic,
-			Balancer: &kafka.LeastBytes{},
+			Addr:                   kafka.TCP(brokers...),
+			Topic:                  likesTopic,
+			Balancer:               &kafka.LeastBytes{},
+			AllowAutoTopicCreation: true,
 		}
 		defer likesWriter.Close()
 	}
@@ -95,4 +107,50 @@ func main() {
 	if err := http.ListenAndServe(":8080", nil); err != nil {
 		panic(err)
 	}
+}
+
+func ensureKafkaTopic(brokers []string, topic string) error {
+	if topic == "" || len(brokers) == 0 {
+		return nil
+	}
+
+	var lastErr error
+	for attempt := 0; attempt < 8; attempt++ {
+		conn, err := kafka.Dial("tcp", brokers[0])
+		if err != nil {
+			lastErr = err
+		} else {
+			controller, err := conn.Controller()
+			if err != nil {
+				lastErr = err
+			} else {
+				controllerAddr := net.JoinHostPort(controller.Host, strconv.Itoa(controller.Port))
+				controllerConn, err := kafka.Dial("tcp", controllerAddr)
+				if err != nil {
+					lastErr = err
+				} else {
+					err = controllerConn.CreateTopics(kafka.TopicConfig{
+						Topic:             topic,
+						NumPartitions:     1,
+						ReplicationFactor: 1,
+					})
+					controllerConn.Close()
+					if err == nil || strings.Contains(err.Error(), "already exists") {
+						conn.Close()
+						return nil
+					}
+					lastErr = err
+				}
+			}
+			conn.Close()
+		}
+
+		wait := time.Duration(attempt+1) * time.Second
+		time.Sleep(wait)
+	}
+
+	if lastErr == nil {
+		lastErr = fmt.Errorf("unknown error")
+	}
+	return lastErr
 }

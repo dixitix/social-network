@@ -2,6 +2,7 @@ package storage
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -41,8 +42,38 @@ func New(ctx context.Context, cfg Config) (*Repository, error) {
 			Username: cfg.User,
 			Password: cfg.Password,
 		},
+		DialTimeout:     5 * time.Second,
+		ConnMaxLifetime: 10 * time.Minute,
 	}
-	conn, err := ch.Open(opts)
+
+	var (
+		conn driver.Conn
+		err  error
+	)
+	for attempt := 0; attempt < 5; attempt++ {
+		conn, err = ch.Open(opts)
+		if err == nil {
+			pingCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+			err = conn.Ping(pingCtx)
+			cancel()
+			if err == nil {
+				break
+			}
+			if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+				// respect caller cancellation immediately
+				conn.Close()
+				return nil, fmt.Errorf("clickhouse ping cancelled: %w", err)
+			}
+			conn.Close()
+		}
+
+		wait := time.Duration(attempt+1) * time.Second
+		select {
+		case <-ctx.Done():
+			return nil, fmt.Errorf("clickhouse connect aborted: %w", ctx.Err())
+		case <-time.After(wait):
+		}
+	}
 	if err != nil {
 		return nil, fmt.Errorf("clickhouse connect failed: %w", err)
 	}
