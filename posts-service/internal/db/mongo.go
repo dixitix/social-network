@@ -73,8 +73,16 @@ func (db *DB) Delete(id, ownerID string) error {
 func (db *DB) Get(id, ownerID string) (Post, error) {
 	ctx := context.Background()
 
+	filter := bson.D{{Key: "id", Value: id}}
+	if ownerID != "" {
+		filter = append(filter, bson.E{Key: "owner_id", Value: ownerID})
+	}
+
 	var p Post
-	err := db.coll.FindOne(ctx, bson.D{{Key: "id", Value: id}, {Key: "owner_id", Value: ownerID}}).Decode(&p)
+	err := db.coll.FindOne(ctx, filter).Decode(&p)
+	if errors.Is(err, mongo.ErrNoDocuments) {
+		return Post{}, ErrNotFound
+	}
 	return p, err
 }
 
@@ -85,7 +93,10 @@ func (db *DB) List(ownerID string, page, pageSize int64) ([]Post, int64, error) 
 		return nil, 0, ErrInvalidPagination
 	}
 
-	filter := bson.D{{Key: "owner_id", Value: ownerID}}
+	filter := bson.D{}
+	if ownerID != "" {
+		filter = append(filter, bson.E{Key: "owner_id", Value: ownerID})
+	}
 
 	total, err := db.coll.CountDocuments(ctx, filter)
 	if err != nil {
