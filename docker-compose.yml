@@ -61,6 +61,12 @@ services:
 
   kafka:
     image: bitnamilegacy/kafka:3.7.0
+    command:
+      - /bin/bash
+      - -c
+      - |
+        printf 'deleteall /brokers/ids/1\nquit\n' | /opt/bitnami/kafka/bin/zookeeper-shell.sh zookeeper:2181 || true
+        exec /opt/bitnami/scripts/kafka/run.sh
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_CFG_LISTENERS: PLAINTEXT://:9092
@@ -76,6 +82,8 @@ services:
     image: clickhouse/clickhouse-server:24.8
     environment:
       CLICKHOUSE_DB: stats
+      CLICKHOUSE_USER: stats_user
+      CLICKHOUSE_PASSWORD: stats_pass
     ports:
       - "8123:8123"
       - "9000:9000"
@@ -87,6 +95,8 @@ services:
     environment:
       CLICKHOUSE_ADDR: stats-clickhouse:9000
       CLICKHOUSE_DB: stats
+      CLICKHOUSE_USER: stats_user
+      CLICKHOUSE_PASSWORD: stats_pass
       KAFKA_BROKERS: kafka:9092
       KAFKA_VIEWS_TOPIC: post_views
       KAFKA_LIKES_TOPIC: post_likes
