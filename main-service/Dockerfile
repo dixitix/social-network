@@ -5,6 +5,7 @@ WORKDIR /app
 COPY go.work ./
 COPY main-service/go.mod main-service/go.sum ./main-service/
 COPY posts-service/go.mod posts-service/go.sum ./posts-service/
+COPY stats-service/go.mod stats-service/go.sum ./stats-service/
 
 WORKDIR /app/main-service
 RUN go mod download
