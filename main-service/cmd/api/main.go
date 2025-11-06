@@ -15,6 +15,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	proto "posts-service/proto"
+	statspb "stats-service/proto"
 
 	"github.com/segmentio/kafka-go"
 )
@@ -48,6 +49,19 @@ func main() {
 	defer grpcConn.Close()
 
 	postsClient := proto.NewPostsServiceClient(grpcConn)
+
+	statsAddr := os.Getenv("STATS_SERVICE_ADDR")
+	if statsAddr == "" {
+		statsAddr = "stats-service:9090"
+	}
+
+	statsConn, err := grpc.NewClient(statsAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		panic(fmt.Errorf("stats grpc client failed: %w", err))
+	}
+	defer statsConn.Close()
+
+	statsClient := statspb.NewStatsServiceClient(statsConn)
 
 	brokersEnv := os.Getenv("KAFKA_BROKERS")
 	if brokersEnv == "" {
@@ -102,6 +116,9 @@ func main() {
 	http.HandleFunc("/users/me/update", handlers.UserMeUpdate(db))
 	http.HandleFunc("/posts", handlers.Posts(postsClient))
 	http.HandleFunc("/posts/", handlers.PostsWithID(postsClient, viewsWriter, likesWriter))
+	http.HandleFunc("/stats/post", handlers.StatsPost(statsClient))
+	http.HandleFunc("/stats/top-posts", handlers.StatsTopPosts(statsClient, postsClient, db))
+	http.HandleFunc("/stats/top-users", handlers.StatsTopUsers(statsClient, db))
 
 	fmt.Println("Main server started on :8080")
 	if err := http.ListenAndServe(":8080", nil); err != nil {
