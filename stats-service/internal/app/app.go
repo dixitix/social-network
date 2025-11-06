@@ -6,17 +6,24 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
 	"sync"
 	"time"
 
 	"github.com/segmentio/kafka-go"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
+
+	postspb "posts-service/proto"
+	statspb "stats-service/proto"
 
 	"stats-service/internal/storage"
 )
 
 type Config struct {
 	HTTPAddr           string
+	GRPCAddr           string
 	ClickHouseAddr     []string
 	ClickHouseDB       string
 	ClickHouseUser     string
@@ -25,6 +32,7 @@ type Config struct {
 	KafkaGroupID       string
 	ViewsTopic         string
 	LikesTopic         string
+	PostsServiceAddr   string
 }
 
 type event struct {
@@ -36,6 +44,9 @@ type event struct {
 func Run(ctx context.Context, cfg Config) error {
 	if cfg.HTTPAddr == "" {
 		cfg.HTTPAddr = ":8081"
+	}
+	if cfg.GRPCAddr == "" {
+		cfg.GRPCAddr = ":9090"
 	}
 	if len(cfg.ClickHouseAddr) == 0 {
 		cfg.ClickHouseAddr = []string{"stats-clickhouse:9000"}
@@ -58,6 +69,9 @@ func Run(ctx context.Context, cfg Config) error {
 	if len(cfg.KafkaBrokers) == 0 {
 		return fmt.Errorf("no kafka brokers configured")
 	}
+	if cfg.PostsServiceAddr == "" {
+		cfg.PostsServiceAddr = "posts-service:50051"
+	}
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/health", func(w http.ResponseWriter, _ *http.Request) {
@@ -68,13 +82,18 @@ func Run(ctx context.Context, cfg Config) error {
 		Addr:    cfg.HTTPAddr,
 		Handler: mux,
 	}
-	errCh := make(chan error, 1)
+	errCh := make(chan error, 2)
 
 	go func() {
 		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			errCh <- fmt.Errorf("http server failed: %w", err)
 		}
 	}()
+
+	grpcListener, err := net.Listen("tcp", cfg.GRPCAddr)
+	if err != nil {
+		return fmt.Errorf("grpc listen failed: %w", err)
+	}
 
 	go func() {
 		<-ctx.Done()
@@ -95,6 +114,27 @@ func Run(ctx context.Context, cfg Config) error {
 		return fmt.Errorf("storage init failed: %w", err)
 	}
 	defer repo.Close()
+
+	postsConn, err := grpc.NewClient(cfg.PostsServiceAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		grpcListener.Close()
+		return fmt.Errorf("posts client init failed: %w", err)
+	}
+	defer postsConn.Close()
+
+	grpcSrv := grpc.NewServer()
+	statspb.RegisterStatsServiceServer(grpcSrv, newStatsServer(repo, postspb.NewPostsServiceClient(postsConn)))
+
+	go func() {
+		if err := grpcSrv.Serve(grpcListener); err != nil && !errors.Is(err, grpc.ErrServerStopped) {
+			errCh <- fmt.Errorf("grpc server failed: %w", err)
+		}
+	}()
+
+	go func() {
+		<-ctx.Done()
+		grpcSrv.GracefulStop()
+	}()
 
 	var wg sync.WaitGroup
 	wg.Add(2)
