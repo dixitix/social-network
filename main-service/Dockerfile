@@ -1,5 +1,10 @@
 FROM golang:1.25.0
 
+ENV GOCACHE=/tmp/go-build \
+    GOMODCACHE=/go/pkg/mod
+
+RUN mkdir -p /tmp/go-build
+
 WORKDIR /app
 
 COPY go.work ./
@@ -11,6 +16,7 @@ WORKDIR /app/main-service
 RUN go mod download
 COPY main-service/ ./
 COPY posts-service/proto ../posts-service/proto
+COPY stats-service/proto ../stats-service/proto
 RUN go build -o /app/server ./cmd/api
 
 EXPOSE 8080
