@@ -1,0 +1,154 @@
+openapi: 3.0.3
+info:
+  title: Stats Service
+  version: 1.0.0
+servers:
+  - url: http://localhost:8081
+paths:
+  /health:
+    get:
+      responses:
+        '200':
+          content:
+            text/plain:
+              schema:
+                type: string
+  /stats/post:
+    get:
+      parameters:
+        - in: query
+          name: post_id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PostStatsResponse'
+        '400':
+          content:
+            text/plain:
+              schema:
+                type: string
+        '500':
+          content:
+            text/plain:
+              schema:
+                type: string
+  /stats/top-posts:
+    get:
+      parameters:
+        - in: query
+          name: metric
+          required: false
+          schema:
+            type: string
+            enum: [views, likes]
+        - in: query
+          name: limit
+          required: false
+          schema:
+            type: integer
+            format: int32
+            minimum: 1
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TopPostsResponse'
+        '400':
+          content:
+            text/plain:
+              schema:
+                type: string
+        '500':
+          content:
+            text/plain:
+              schema:
+                type: string
+  /stats/top-users:
+    get:
+      parameters:
+        - in: query
+          name: limit
+          required: false
+          schema:
+            type: integer
+            format: int32
+            minimum: 1
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TopUsersResponse'
+        '400':
+          content:
+            text/plain:
+              schema:
+                type: string
+        '500':
+          content:
+            text/plain:
+              schema:
+                type: string
+components:
+  schemas:
+    PostStatsResponse:
+      type: object
+      properties:
+        post_id:
+          type: string
+        views:
+          type: integer
+          format: int64
+        likes:
+          type: integer
+          format: int64
+      required:
+        - post_id
+        - views
+        - likes
+    PostItem:
+      type: object
+      properties:
+        post_id:
+          type: string
+        value:
+          type: integer
+          format: int64
+      required:
+        - post_id
+        - value
+    TopPostsResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/PostItem'
+      required:
+        - items
+    UserItem:
+      type: object
+      properties:
+        user_id:
+          type: string
+        likes:
+          type: integer
+          format: int64
+      required:
+        - user_id
+        - likes
+    TopUsersResponse:
+      type: object
+      properties:
+        users:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserItem'
+      required:
+        - users

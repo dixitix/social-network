@@ -23,6 +23,11 @@ type Event struct {
 	Timestamp time.Time
 }
 
+type PostCount struct {
+	PostID string
+	Value  int64
+}
+
 type Repository struct {
 	conn   driver.Conn
 	dbName string
@@ -112,4 +117,68 @@ func (r *Repository) ensureSchema(ctx context.Context) error {
 func (r *Repository) SaveEvent(ctx context.Context, e Event) error {
 	query := "INSERT INTO " + r.dbName + ".events (event_type, post_id, ts) VALUES (?, ?, ?)"
 	return r.conn.Exec(ctx, query, e.EventType, e.PostID, e.Timestamp)
+}
+
+func (r *Repository) PostStats(ctx context.Context, postID string) (views, likes int64, err error) {
+	query := "SELECT sum(event_type = 'view') AS views, sum(event_type = 'like') AS likes FROM " + r.dbName + ".events WHERE post_id = ?"
+	rows, err := r.conn.Query(ctx, query, postID)
+	if err != nil {
+		return 0, 0, err
+	}
+	defer rows.Close()
+
+	if rows.Next() {
+		var v, l uint64
+		if err := rows.Scan(&v, &l); err != nil {
+			return 0, 0, err
+		}
+		return int64(v), int64(l), nil
+	}
+
+	return 0, 0, nil
+}
+
+func (r *Repository) TopPosts(ctx context.Context, eventType string, limit int) ([]PostCount, error) {
+	if limit <= 0 {
+		limit = 5
+	}
+	query := "SELECT post_id, count() AS cnt FROM " + r.dbName + ".events WHERE event_type = ? GROUP BY post_id ORDER BY cnt DESC LIMIT ?"
+	rows, err := r.conn.Query(ctx, query, eventType, uint64(limit))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var result []PostCount
+	for rows.Next() {
+		var id string
+		var cnt uint64
+		if err := rows.Scan(&id, &cnt); err != nil {
+			return nil, err
+		}
+		result = append(result, PostCount{PostID: id, Value: int64(cnt)})
+	}
+
+	return result, rows.Err()
+}
+
+func (r *Repository) LikesPerPost(ctx context.Context) ([]PostCount, error) {
+	query := "SELECT post_id, count() AS cnt FROM " + r.dbName + ".events WHERE event_type = 'like' GROUP BY post_id"
+	rows, err := r.conn.Query(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var result []PostCount
+	for rows.Next() {
+		var id string
+		var cnt uint64
+		if err := rows.Scan(&id, &cnt); err != nil {
+			return nil, err
+		}
+		result = append(result, PostCount{PostID: id, Value: int64(cnt)})
+	}
+
+	return result, rows.Err()
 }

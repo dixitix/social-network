@@ -5,6 +5,9 @@ go 1.25.0
 require (
 	github.com/ClickHouse/clickhouse-go/v2 v2.40.3
 	github.com/segmentio/kafka-go v0.4.49
+	google.golang.org/grpc v1.76.0
+	google.golang.org/protobuf v1.36.6
+	posts-service v0.0.0-00010101000000-000000000000
 )
 
 require (
@@ -21,5 +24,10 @@ require (
 	go.opentelemetry.io/otel v1.38.0 // indirect
 	go.opentelemetry.io/otel/trace v1.38.0 // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
+	golang.org/x/net v0.44.0 // indirect
 	golang.org/x/sys v0.36.0 // indirect
+	golang.org/x/text v0.29.0 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20250804133106-a7a43d27e69b // indirect
 )
+
+replace posts-service => ../posts-service

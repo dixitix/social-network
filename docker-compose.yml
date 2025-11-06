@@ -24,6 +24,7 @@ services:
       DATABASE_URL: postgres://main_user:main_pass@main-db:5432/main_db?sslmode=disable
       JWT_SECRET: dev-secret-change
       POSTS_SERVICE_ADDR: posts-service:50051
+      STATS_SERVICE_ADDR: stats-service:9090
       KAFKA_BROKERS: kafka:9092
       KAFKA_VIEWS_TOPIC: post_views
       KAFKA_LIKES_TOPIC: post_likes
@@ -100,6 +101,7 @@ services:
       KAFKA_BROKERS: kafka:9092
       KAFKA_VIEWS_TOPIC: post_views
       KAFKA_LIKES_TOPIC: post_likes
+      POSTS_SERVICE_ADDR: posts-service:50051
     depends_on:
       kafka:
         condition: service_started
@@ -107,3 +109,4 @@ services:
         condition: service_started
     ports:
       - "8081:8081"
+      - "9090:9090"

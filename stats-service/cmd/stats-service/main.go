@@ -14,6 +14,7 @@ func main() {
 
 	cfg := app.Config{
 		HTTPAddr:           ":8081",
+		GRPCAddr:           ":9090",
 		ClickHouseAddr:     []string{env("CLICKHOUSE_ADDR", "stats-clickhouse:9000")},
 		ClickHouseDB:       env("CLICKHOUSE_DB", "stats"),
 		ClickHouseUser:     env("CLICKHOUSE_USER", "default"),
@@ -22,6 +23,7 @@ func main() {
 		KafkaGroupID:       "stats-service",
 		ViewsTopic:         env("KAFKA_VIEWS_TOPIC", "post_views"),
 		LikesTopic:         env("KAFKA_LIKES_TOPIC", "post_likes"),
+		PostsServiceAddr:   env("POSTS_SERVICE_ADDR", "posts-service:50051"),
 	}
 
 	if err := app.Run(ctx, cfg); err != nil {
