@@ -4,20 +4,28 @@ import (
 	"context"
 	"sort"
 
+	"google.golang.org/grpc"
 	postspb "posts-service/proto"
 	statspb "stats-service/proto"
-
-	"stats-service/internal/storage"
 )
+
+type postsClient interface {
+	GetPost(ctx context.Context, in *postspb.GetPostRequest, opts ...grpc.CallOption) (*postspb.GetPostResponse, error)
+}
 
 type statsServer struct {
 	statspb.UnimplementedStatsServiceServer
-	repo        *storage.Repository
-	postsClient postspb.PostsServiceClient
+	repo        statsRepository
+	postsClient postsClient
 }
 
-func newStatsServer(repo *storage.Repository, postsClient postspb.PostsServiceClient) *statsServer {
+func newStatsServer(repo statsRepository, postsClient postsClient) *statsServer {
 	return &statsServer{repo: repo, postsClient: postsClient}
+}
+
+// NewStatsServerForTest exposes a stats server with injected dependencies for tests.
+func NewStatsServerForTest(repo statsRepository, postsClient postsClient) statspb.StatsServiceServer {
+	return newStatsServer(repo, postsClient)
 }
 
 func (s *statsServer) GetPostStats(ctx context.Context, in *statspb.PostStatsRequest) (*statspb.PostStatsResponse, error) {

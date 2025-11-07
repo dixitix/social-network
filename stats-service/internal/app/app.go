@@ -41,6 +41,22 @@ type event struct {
 	Timestamp time.Time `json:"timestamp"`
 }
 
+type kafkaMessageReader interface {
+	ReadMessage(context.Context) (kafka.Message, error)
+	Close() error
+}
+
+var newKafkaReader = func(cfg kafka.ReaderConfig) kafkaMessageReader {
+	return kafka.NewReader(cfg)
+}
+
+type statsRepository interface {
+	SaveEvent(ctx context.Context, e storage.Event) error
+	PostStats(ctx context.Context, postID string) (int64, int64, error)
+	TopPosts(ctx context.Context, eventType string, limit int) ([]storage.PostCount, error)
+	LikesPerPost(ctx context.Context) ([]storage.PostCount, error)
+}
+
 func Run(ctx context.Context, cfg Config) error {
 	if cfg.HTTPAddr == "" {
 		cfg.HTTPAddr = ":8081"
@@ -171,15 +187,18 @@ func Run(ctx context.Context, cfg Config) error {
 	}
 }
 
-func consumeTopic(ctx context.Context, wg *sync.WaitGroup, repo *storage.Repository, cfg kafka.ReaderConfig, defaultType string) {
+func consumeTopic(ctx context.Context, wg *sync.WaitGroup, repo statsRepository, cfg kafka.ReaderConfig, defaultType string) {
 	defer wg.Done()
 
-	reader := kafka.NewReader(cfg)
+	reader := newKafkaReader(cfg)
 	defer reader.Close()
 
 	for {
 		msg, err := reader.ReadMessage(ctx)
 		if err != nil {
+			if ctx.Err() != nil {
+				return
+			}
 			log.Printf("read kafka message failed: %v", err)
 			time.Sleep(time.Second)
 			continue
