@@ -13,9 +13,17 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
+type PostStorage interface {
+	Create(db.Post) (db.Post, error)
+	Update(id, ownerID, title, content string) (db.Post, error)
+	Delete(id, ownerID string) error
+	Get(id, ownerID string) (db.Post, error)
+	List(ownerID string, page, pageSize int64) ([]db.Post, int64, error)
+}
+
 type Server struct {
 	pb.UnimplementedPostsServiceServer
-	DB *db.DB
+	DB PostStorage
 }
 
 func toPB(p db.Post) *pb.Post {
