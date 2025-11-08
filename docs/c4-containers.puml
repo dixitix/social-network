@@ -13,7 +13,7 @@ title    Архитектура социальной сети
 
 LAYOUT_WITH_LEGEND()
 
-Person(user, "User", "Зарегистрированный пользователь")
+Person(user, "User", "Пользователь")
 Container(mainService, "Main Service", "Go", "Обрабатывает клиентский API, регистрацию пользователей и аутентификацию", "docker")
 Container(statisticsService, "Statistics Service", "Go", "Подсчитывает лайки и просмотры", "docker")
 Container(postsAndCommentsService, "Posts & Comments Service", "Go", "Управляет публикациями и комментариями", "docker")

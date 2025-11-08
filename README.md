@@ -1,11 +1,9 @@
 # Social Network
 
-Учебный проект "Социальная сеть" с микросервисами. Три Go‑сервиса взаимодействуют по gRPC и Kafka, хранение данных в Postgres, MongoDB и ClickHouse. Диаграммы лежат в `docs/*.puml`.
+Учебный проект "Социальная сеть" с микросервисами. Три Go‑сервиса взаимодействуют по gRPC и Kafka, хранение данных в Postgres, MongoDB и ClickHouse.
 
-## Сервисы
-- **main-service**: REST API, JWT‑аутентификация, Postgres, публикация событий `view/like` в Kafka, прокси к gRPC.
-- **posts-service**: CRUD постов в MongoDB.
-- **stats-service**: консьюмер Kafka → ClickHouse, подсчет статистики по постам и пользователям.
+## Архитектура сервисов
+![Архитектура сервисов](docs/c4-containers.png)
 
 ## Быстрый старт
 ```bash
